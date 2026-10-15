@@ -1,0 +1,295 @@
+<title>GaitLens-6DOF Virtual Bench</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument console — a sticky control strip over a single column of panels; demo first, evidence after */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --ink:#16201e; --muted:#5b6865; --line:#d9e0dd; --soft:#e9eeec;
+  --accent:#0f6e73; --accent-2:#5aa6a9; --truth:#b26b14; --band:rgba(15,110,115,.10);
+  --ok:#2f7d4f; --warn:#b7791f; --bad:#b4433a; --okbg:#e3f1e8; --warnbg:#f7ecd9; --badbg:#f6e1de;
+  --display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1514; --panel:#161e1d; --ink:#e3ebe8; --muted:#94a39f; --line:#2a3634; --soft:#1d2826;
+  --accent:#4fb3b8; --accent-2:#2f7f83; --truth:#e0a050; --band:rgba(79,179,184,.13);
+  --ok:#5cbf83; --warn:#e0a650; --bad:#e2766c; --okbg:#173024; --warnbg:#33281a; --badbg:#3a1f1c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1514; --panel:#161e1d; --ink:#e3ebe8; --muted:#94a39f; --line:#2a3634; --soft:#1d2826;
+  --accent:#4fb3b8; --accent-2:#2f7f83; --truth:#e0a050; --band:rgba(79,179,184,.13);
+  --ok:#5cbf83; --warn:#e0a650; --bad:#e2766c; --okbg:#173024; --warnbg:#33281a; --badbg:#3a1f1c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14.5px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+header{padding-top:28px;display:grid;gap:10px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(30px,5vw,46px);line-height:1.02;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:24px;margin:0;line-height:1.15;text-wrap:balance}
+h3{font-family:var(--display);font-weight:600;font-size:17px;margin:0}
+p{margin:0;max-width:72ch}
+.lede{color:var(--muted);font-size:15.5px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:16px;min-width:0}
+.ctl{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--panel)}
+.seg button{font:500 13px var(--body);border:0;background:transparent;color:var(--ink);padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel)}
+.seg button:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ctl label.t{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.sw{display:inline-flex;align-items:center;gap:8px;font:500 13px var(--body);background:none;border:0;color:var(--ink);cursor:pointer;padding:4px}
+.sw .knob{width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;transition:background .15s}
+.sw .knob::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--panel);transition:left .15s}
+.sw[aria-checked="true"] .knob{background:var(--accent)} .sw[aria-checked="true"] .knob::after{left:19px}
+.grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:860px){.grid6,.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.grid6,.grid3,.grid2{grid-template-columns:1fr}}
+.chart{min-width:0;display:grid;gap:4px}
+.chart .cap{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:500}
+.chart .cap span:last-child{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.chart svg{width:100%;height:auto;display:block}
+.model{font-family:var(--mono);font-size:10px;color:var(--warn);text-transform:uppercase;letter-spacing:.06em}
+svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:6px;border-radius:2px}
+.metric{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:4px;align-content:start}
+.metric .k{font-size:12.5px;color:var(--muted)}
+.metric .v{font-family:var(--mono);font-size:22px;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:6px}
+.metric .v small{font-size:12px;color:var(--muted)}
+.metric .n{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pill{font:600 11px var(--mono);letter-spacing:.04em;padding:2px 7px;border-radius:20px;text-transform:uppercase;justify-self:start}
+.g{background:var(--okbg);color:var(--ok)} .a{background:var(--warnbg);color:var(--warn)} .r{background:var(--badbg);color:var(--bad)}
+.summary{border-left:3px solid var(--accent);padding:4px 0 4px 14px;font-size:15px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+.tw{overflow-x:auto}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.note{font-size:12.5px;color:var(--muted)}
+ol.fix{margin:0;padding-left:20px;display:grid;gap:10px;max-width:80ch}
+ol.fix b{font-weight:600}
+.sym{display:grid;gap:6px}
+.symbar{height:8px;border-radius:4px;background:var(--soft);position:relative}
+.symbar b{position:absolute;top:-3px;width:3px;height:14px;background:var(--ink);border-radius:2px}
+.symbar span{position:absolute;inset:0 auto 0 40%;width:20%;background:var(--okbg);border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Virtual bench · 32 synthetic subjects · 64 knees · 500 simulated sessions</div>
+  <h1>GaitLens-6DOF, run end to end in simulation</h1>
+  <p class="lede">Every knee below has a known ground truth. Four BNO086-class IMUs, a side-view phone camera running a pose model, soft-tissue artefact, sensor drift, packet loss and strap misplacement are simulated, then the full calibration and fusion pipeline is scored against that truth. The demo panel shows exactly what a jury would see; the scorecard shows which claims in the concept survive.</p>
+</header>
+
+<div class="ctl" role="toolbar" aria-label="Demo controls">
+  <label class="t">Subject</label>
+  <div class="seg" id="subj"><button aria-pressed="true" data-v="healthy">Healthy</button><button aria-pressed="false" data-v="oa">Medial OA, right knee</button></div>
+  <label class="t">Knee</label>
+  <div class="seg" id="leg"><button aria-pressed="true" data-v="R">Right</button><button aria-pressed="false" data-v="L">Left</button></div>
+  <button class="sw" id="comp" role="switch" aria-checked="true"><span class="knob"></span>Artefact &amp; drift compensation</button>
+  <button class="sw" id="truth" role="switch" aria-checked="true"><span class="knob"></span>Show ground truth</button>
+</div>
+
+<section class="panel" aria-labelledby="h-demo">
+  <div style="display:grid;gap:6px">
+    <h2 id="h-demo">Clinician view</h2>
+    <p class="summary" id="plain"></p>
+  </div>
+  <div class="grid3" id="metrics"></div>
+  <div class="legend"><span><i style="background:var(--accent)"></i>GaitLens estimate (mean of strides)</span><span><i style="background:var(--truth)"></i>Ground truth (bone)</span><span><i style="background:var(--band);height:10px"></i>Healthy band, mean ± 2 SD</span></div>
+  <div class="grid6" id="cycles"></div>
+  <p class="note">Translations are drawn from the tibiofemoral model driven by measured rotations. The simulation shows they are not independently observable with these sensors (see scorecard), so they carry a <span class="model">model</span> tag.</p>
+</section>
+
+<section class="panel" aria-labelledby="h-live">
+  <h2 id="h-live">Six seconds of walking, raw stream</h2>
+  <p class="note">Pass 2, sampled at 25 Hz for display. Ticks mark detected heel strikes. Switch compensation off to see the uncorrected stream the sensors deliver.</p>
+  <div class="grid3" id="live"></div>
+</section>
+
+<section class="panel" aria-labelledby="h-score">
+  <h2 id="h-score">Scorecard: concept claims against simulated truth</h2>
+  <div class="tw"><table id="score"><thead><tr><th>Claim in the concept</th><th>Target</th><th>Simulated result</th><th>Verdict</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" aria-labelledby="h-ev">
+  <h2 id="h-ev">Evidence</h2>
+  <div class="grid2">
+    <div class="chart"><div class="cap"><span>Rotation error by pipeline stage</span><span>RMSE, deg, 64 knees</span></div><svg id="accChart" viewBox="0 0 520 300" role="img" aria-label="Bar chart of rotation RMSE by pipeline stage"></svg></div>
+    <div class="chart"><div class="cap"><span>The "STA toggle" erases varus thrust</span><span>% of true thrust recovered, OA knees</span></div><svg id="lamChart" viewBox="0 0 520 300" role="img" aria-label="Bar chart of varus thrust recovered"></svg></div>
+    <div class="chart"><div class="cap"><span>Heading drift over a 6.5-minute session</span><span>IE rotation RMSE per pass</span></div><svg id="longChart" viewBox="0 0 520 280" role="img" aria-label="Line chart of drift over time"></svg></div>
+    <div class="chart"><div class="cap"><span>Soft-tissue artefact sets the floor</span><span>RMSE vs STA magnitude</span></div><svg id="staChart" viewBox="0 0 520 280" role="img" aria-label="Line chart of error versus soft tissue artefact magnitude"></svg></div>
+  </div>
+  <div class="tw"><table id="icc"><thead><tr><th>Clinical metric</th><th>Test-retest ICC(2,1)</th><th>MDC95</th><th>Bias vs truth</th><th>95% limits</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" aria-labelledby="h-fix">
+  <h2 id="h-fix">What changes in the build</h2>
+  <ol class="fix">
+    <li><b>Replace the joint-constraint "STA toggle" with flexion–varus crosstalk minimisation.</b> Shrinking secondary rotations toward a rigid-joint model removes exactly the varus thrust clinicians look for. Crosstalk minimisation recovers 94% of true thrust and separates OA from healthy knees perfectly in this cohort. On stage, toggle drift and crosstalk correction instead.</li>
+    <li><b>Do the functional calibration in two passes.</b> Screw-home rotation tilts a gyro-fitted hinge axis by 10–15°. Refit using samples above 35° flexion, take the shank axis from the standing knee-bend trial, and align the two sensors' headings from flexed postures, not from standing. Skipping this nearly triples varus error.</li>
+    <li><b>Report translations as model estimates.</b> Neither the IMUs nor a pose-estimation camera observe millimetre tibiofemoral translation. ACL-deficient knees were indistinguishable from healthy ones (AUC 0.44), and fitting translation from camera landmarks made it worse. Present 3 measured rotations + 3 model-derived translations with stated uncertainty.</li>
+    <li><b>Drop the camera from the accuracy story, keep it for the jury.</b> Standing pauses and stride stationarity already hold drift flat; the camera adds about 0.1°. Use it for the side-by-side video, flexion cross-check and time sync (3.5 ms), and say so.</li>
+    <li><b>Add a foot or shank event offset, or the 6th foot sensor.</b> Shank-gyro heel strikes run 38 ms late. A fixed offset learned on a pressure mat brings it to 12 ms.</li>
+    <li><b>Swap the ankle-weight demo for a lateral-wedge or valgus-brace demo.</b> An ankle weight mostly changes swing, so it is a weak stand-in for varus loading. A 5–10° wedge or unloader brace changes frontal-plane kinematics directly. This one is engineering judgement, not simulated.</li>
+  </ol>
+  <p class="note">Not simulated: KAM (needs kinetics and a force-plate-trained model), BLE and phone latency (compute per window is under 0.1 ms), battery life. Truth curves are normative-shaped synthetic kinematics, not cadaver or fluoroscopy data, so absolute numbers should be re-checked on a real jig before quoting them.</p>
+</section>
+</div>
+
+<script>
+const D = __DATA__;
+const $ = s => document.querySelector(s);
+const st = {subj:"healthy", leg:"R", comp:true, truth:true};
+const NAMES = ["Flexion–extension","Varus (+) / valgus","Internal (+) / external rot.","Medio-lateral translation","Antero-posterior translation","Proximo-distal translation"];
+const UNIT = ["deg","deg","deg","mm","mm","mm"];
+const NS = "http://www.w3.org/2000/svg";
+const el = (n,a={},p) => {const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function scale(d0,d1,r0,r1){return v=>r0+(v-d0)/(d1-d0)*(r1-r0);}
+function nice(lo,hi){const span=hi-lo||1;const step=Math.pow(10,Math.floor(Math.log10(span/4)));const m=[1,2,5,10].find(m=>span/(m*step)<=5)*step;return {lo:Math.floor(lo/m)*m,hi:Math.ceil(hi/m)*m,step:m};}
+function axes(svg,W,H,pad,x,y,yr,xticks,xfmt){
+  for(let v=yr.lo; v<=yr.hi+1e-9; v+=yr.step){const yy=y(v);el("line",{x1:pad.l,x2:W-pad.r,y1:yy,y2:yy,stroke:"var(--soft)","stroke-width":1},svg);
+    const t=el("text",{x:pad.l-6,y:yy+3,"text-anchor":"end"},svg);t.textContent=+v.toFixed(2);}
+  xticks.forEach(v=>{const t=el("text",{x:x(v),y:H-pad.b+14,"text-anchor":"middle"},svg);t.textContent=xfmt(v);});
+}
+function path(pts){return pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join("");}
+
+function cycleChart(box,i){
+  const L=D.demo[st.subj][st.leg], m=st.comp?L.on:L.off;
+  const W=320,H=190,pad={l:34,r:8,t:8,b:22};
+  const est=m.cyc.map(r=>r[i]), sd=m.cyc_sd.map(r=>r[i]), tru=L.truth_cyc.map(r=>r[i]);
+  const bm=D.band.mean.map(r=>r[i]), bs=D.band.sd.map(r=>r[i]);
+  let vals=[...est,...tru,...bm.map((v,k)=>v+2*bs[k]),...bm.map((v,k)=>v-2*bs[k])];
+  const yr=nice(Math.min(...vals),Math.max(...vals));
+  const x=scale(0,100,pad.l,W-pad.r), y=scale(yr.lo,yr.hi,H-pad.b,pad.t);
+  const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.setAttribute("role","img");
+  svg.setAttribute("aria-label",NAMES[i]+" over the gait cycle");
+  axes(svg,W,H,pad,x,y,yr,[0,25,50,75,100],v=>v+"%");
+  const up=bm.map((v,k)=>[x(k),y(v+2*bs[k])]), dn=bm.map((v,k)=>[x(k),y(v-2*bs[k])]).reverse();
+  el("path",{d:path(up)+path(dn).replace("M","L")+"Z",fill:"var(--band)",stroke:"none"},svg);
+  const su=est.map((v,k)=>[x(k),y(v+sd[k])]), sdn=est.map((v,k)=>[x(k),y(v-sd[k])]).reverse();
+  el("path",{d:path(su)+path(sdn).replace("M","L")+"Z",fill:"var(--accent)","fill-opacity":.13,stroke:"none"},svg);
+  el("line",{x1:x(60),x2:x(60),y1:pad.t,y2:H-pad.b,stroke:"var(--line)","stroke-dasharray":"3 3"},svg);
+  if(st.truth) el("path",{d:path(tru.map((v,k)=>[x(k),y(v)])),fill:"none",stroke:"var(--truth)","stroke-width":1.6,"stroke-dasharray":"5 3"},svg);
+  el("path",{d:path(est.map((v,k)=>[x(k),y(v)])),fill:"none",stroke:"var(--accent)","stroke-width":2.2},svg);
+  const err=Math.sqrt(est.reduce((s,v,k)=>s+(v-tru[k])**2,0)/est.length);
+  box.innerHTML=`<div class="cap"><span>${NAMES[i]}${i>2?' <span class="model">model</span>':''}</span><span>${UNIT[i]} · cycle RMSE ${err.toFixed(1)}</span></div>`;
+  box.appendChild(svg);
+}
+
+function liveChart(box,i){
+  const L=D.demo[st.subj][st.leg], m=st.comp?L.on:L.off;
+  const W=320,H=170,pad={l:34,r:8,t:8,b:22};
+  const est=m.ts.map(r=>r[i]), tru=L.truth_ts.map(r=>r[i]), t=L.t;
+  const all=[...D.demo[st.subj][st.leg].on.ts.map(r=>r[i]),...L.off.ts.map(r=>r[i]),...tru];
+  const yr=nice(Math.min(...all),Math.max(...all));
+  const x=scale(0,6,pad.l,W-pad.r), y=scale(yr.lo,yr.hi,H-pad.b,pad.t);
+  const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.setAttribute("role","img");svg.setAttribute("aria-label",NAMES[i]+" time series");
+  axes(svg,W,H,pad,x,y,yr,[0,2,4,6],v=>v+" s");
+  L.hs.forEach(h=>el("line",{x1:x(h),x2:x(h),y1:H-pad.b-6,y2:H-pad.b,stroke:"var(--ink)","stroke-width":1.2},svg));
+  if(st.truth) el("path",{d:path(tru.map((v,k)=>[x(t[k]),y(v)])),fill:"none",stroke:"var(--truth)","stroke-width":1.4,"stroke-dasharray":"5 3"},svg);
+  el("path",{d:path(est.map((v,k)=>[x(t[k]),y(v)])),fill:"none",stroke:st.comp?"var(--accent)":"var(--muted)","stroke-width":1.8},svg);
+  const err=Math.sqrt(est.reduce((s,v,k)=>s+(v-tru[k])**2,0)/est.length);
+  box.innerHTML=`<div class="cap"><span>${NAMES[i]}</span><span>RMSE ${err.toFixed(1)} deg</span></div>`;box.appendChild(svg);
+}
+
+const MET=[["peak_swing_flex","Peak swing flexion","deg"],["load_flex","Loading-response flexion","deg"],["varus_thrust","Varus thrust (early stance)","deg"],["ie_rom","Rotation range","deg"],["stride_T","Stride time","s"]];
+function flag(k,v){const n=D.norm[k];if(!n)return null;const z=Math.abs(v-n.mean)/n.sd;return z<2?["g","normal"]:z<3?["a","watch"]:["r","flag"];}
+function renderMetrics(){
+  const S=D.demo[st.subj], m=(st.comp?S[st.leg].on:S[st.leg].off).met, o=(st.comp?S[st.leg==="R"?"L":"R"].on:S[st.leg==="R"?"L":"R"].off).met, tm=S[st.leg].truth_met;
+  const box=$("#metrics");box.innerHTML="";
+  MET.forEach(([k,lab,u])=>{
+    const f=flag(k,m[k]);const d=document.createElement("div");d.className="metric";
+    const n=D.norm[k];
+    d.innerHTML=`<div class="k">${lab}</div><div class="v">${m[k].toFixed(k==="stride_T"?2:1)}<small>${u}</small></div>
+      <div class="n">${n?`healthy ${n.mean.toFixed(1)} ± ${(2*n.sd).toFixed(1)}`:"from heel strikes"}${tm[k]!==undefined&&st.truth?` · truth ${tm[k].toFixed(1)}`:""}</div>
+      ${f?`<span class="pill ${f[0]}">${f[1]}</span>`:""}`;
+    box.appendChild(d);
+  });
+  // symmetry
+  const si=100*(m.varus_thrust-o.varus_thrust)/Math.max(Math.abs(m.peak_swing_flex),1);
+  const ps=100*(m.peak_swing_flex-o.peak_swing_flex)/((m.peak_swing_flex+o.peak_swing_flex)/2);
+  const s=document.createElement("div");s.className="metric";
+  const pos=Math.max(2,Math.min(98,50+ps*2.5));
+  s.innerHTML=`<div class="k">Left/right symmetry, peak swing flexion</div><div class="v">${ps>0?"+":""}${ps.toFixed(1)}<small>%</small></div>
+   <div class="sym"><div class="symbar"><span></span><b style="left:${pos}%"></b></div><div class="n">this knee vs the other · green zone ±8%</div></div>
+   <span class="pill ${Math.abs(ps)<8?"g":Math.abs(ps)<15?"a":"r"}">${Math.abs(ps)<8?"symmetric":"asymmetric"}</span>`;
+  box.appendChild(s);
+  // plain language
+  const parts=[];const ff=flag("varus_thrust",m.varus_thrust), fs=flag("peak_swing_flex",m.peak_swing_flex);
+  const knee=st.leg==="R"?"right":"left";
+  if(ff&&ff[0]!=="g") parts.push(`Early-stance varus thrust of ${m.varus_thrust.toFixed(1)}° at the ${knee} knee, above the healthy range, consistent with medial-compartment loading.`);
+  if(fs&&fs[0]!=="g") parts.push(`Peak swing flexion of ${m.peak_swing_flex.toFixed(0)}° is reduced, a stiff-knee swing pattern.`);
+  if(Math.abs(ps)>=8) parts.push(`Swing flexion differs from the other knee by ${Math.abs(ps).toFixed(0)}%.`);
+  if(!parts.length) parts.push(`${knee[0].toUpperCase()+knee.slice(1)} knee kinematics fall within the healthy band on every reported measure.`);
+  if(!st.comp) parts.push("Compensation is off: values include uncorrected drift and crosstalk.");
+  $("#plain").textContent=parts.join(" ");
+}
+
+function render(){
+  const c=$("#cycles");c.innerHTML="";for(let i=0;i<6;i++){const b=document.createElement("div");b.className="chart";c.appendChild(b);cycleChart(b,i);}
+  const l=$("#live");l.innerHTML="";for(let i=0;i<3;i++){const b=document.createElement("div");b.className="chart";l.appendChild(b);liveChart(b,i);}
+  renderMetrics();
+}
+function seg(id,key){$(id).querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{st[key]=b.dataset.v;$(id).querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));render();}));}
+seg("#subj","subj");seg("#leg","leg");
+["comp","truth"].forEach(k=>$("#"+k).addEventListener("click",e=>{st[k]=!st[k];e.currentTarget.setAttribute("aria-checked",st[k]);render();}));
+
+// ---------- scorecard
+const A=D.acc, f1=v=>v.toFixed(1), f2=v=>v.toFixed(2);
+const rows=[
+ ["Flexion–extension accurate during gait","< 4°",`${f1(A.D_gaitlens.mean[0])}° RMSE (90th pct ${f1(A.D_gaitlens.p90[0])}°)`,"g","Holds"],
+ ["Varus–valgus accurate","< 5°",`${f1(A.D_gaitlens.mean[1])}° with crosstalk minimisation; ${f1(A.X_nominal.mean[1])}° without functional calibration`,"g","Holds, with fixes"],
+ ["Internal–external rotation accurate","< 5°",`${f1(A.D_gaitlens.mean[2])}° RMSE (90th pct ${f1(A.D_gaitlens.p90[2])}°)`,"g","Holds"],
+ ["AP translation resolved without drift","< 5 mm",`${f2(A.D_gaitlens.mean[4])} mm on average, but ACL-deficient knees not detected (AUC ${f2(D.acl.D_gaitlens.auc)} vs ${f2(D.acl.truth.auc)} for truth)`,"a","Met on paper only"],
+ ["Camera + factor graph recovers translation","—",`Camera-fitted coupling error SD ${f2(D.acl.T_camfit.k_err_sd)} mm/deg vs ${f2(D.acl.pop_k_sd)} for the population prior; AP error rises to ${f2(A.T_camfit.mean[4])} mm`,"r","Does not hold"],
+ ["STA separated as joint-model residual","Live toggle",`Recovers ${Math.round(100*D.oa.E_lam1.gain)}% (λ=1) or ${Math.round(100*D.oa.F_lam4.gain)}% (λ=4) of true varus thrust; crosstalk minimisation recovers ${Math.round(100*D.oa.D_gaitlens.gain)}%`,"r","Hides pathology"],
+ ["Drift-free over long sessions","—",`IE error stays at ${f1(D.long.B_drift_imu.at(-1)[1])}° after 6.4 min with IMU priors; raw stream reaches ${f1(D.long.A_raw.at(-1)[1])}°`,"g","Holds"],
+ ["Camera contributes to accuracy","—",`Drift: ${f2(A.B_drift_imu.mean[2])}° → ${f2(A.C_drift_cam.mean[2])}° IE. Time sync ${f1(D.sync.mae_ms)} ms mean error`,"a","Marginal"],
+ ["Gait timing error","< 30 ms",`Heel strike ${f1(D.events.hs_bias)} ms late (SD ${f1(D.events.hs_sd)}); ${f1(D.events.hs_mae_bias_corrected)} ms after fixed offset`,"a","Needs offset"],
+ ["Repeatability across re-strapping","ICC > 0.90",`${Object.values(D.icc).filter(v=>v.icc>0.9).length} of ${Object.keys(D.icc).length} metrics; absolute stance varus ${f2(D.icc.peak_stance_add.icc)}`,"a","Mostly"],
+ ["Detects varus-thrust OA","—",`AUC ${f2(D.oa.D_gaitlens.auc)} (truth ${f2(D.oa.truth.auc)}); ${f2(D.oa.X_nominal.auc)} without functional calibration`,"g","Holds"],
+ ["Single-operator auto-calibration","< 90 s",`Works from a standing knee-bend trial plus the first walking pass; no palpation needed for these metrics`,"g","Holds"],
+];
+$("#score tbody").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td>${r[2]}</td><td><span class="pill ${r[3]}">${r[4]}</span></td></tr>`).join("");
+
+const MN={peak_swing_flex:"Peak swing flexion",load_flex:"Loading-response flexion",flex_rom:"Flexion range",peak_stance_add:"Peak stance varus (absolute)",varus_thrust:"Varus thrust",ie_rom:"Rotation range",peak_stance_ap:"Peak stance AP translation (model)"};
+$("#icc tbody").innerHTML=Object.keys(MN).map(k=>{const i=D.icc[k],a=D.agr[k];const u=k.includes("ap")?"mm":"°";
+  return `<tr><td>${MN[k]}</td><td class="num"><span class="pill ${i.icc>0.9?"g":i.icc>0.75?"a":"r"}">${i.icc.toFixed(2)}</span></td><td class="num">${i.mdc95.toFixed(2)}${u}</td><td class="num">${a.bias>0?"+":""}${a.bias.toFixed(1)}${u}</td><td class="num">± ${a.loa.toFixed(1)}${u}</td></tr>`}).join("");
+
+// ---------- evidence charts
+function barChart(svg,items,ymax,fmt,target){
+  const W=520,H=+svg.getAttribute("viewBox").split(" ")[3],pad={l:40,r:10,t:12,b:70};
+  const yr=nice(0,ymax),x0=pad.l,bw=(W-pad.l-pad.r)/items.length,y=scale(0,yr.hi,H-pad.b,pad.t);
+  axes(svg,W,H,pad,v=>v,y,yr,[],v=>"");
+  if(target!=null){el("line",{x1:pad.l,x2:W-pad.r,y1:y(target),y2:y(target),stroke:"var(--ink)","stroke-dasharray":"4 3","stroke-width":1},svg);}
+  items.forEach((it,k)=>{
+    const g=el("g",{},svg);const cx=x0+bw*k;const n=it.v.length, w=(bw-10)/n;
+    it.v.forEach((v,j)=>{el("rect",{x:cx+5+j*w,y:y(v),width:w-2,height:Math.max(0,y(0)-y(v)),fill:it.c[j],rx:2},g);});
+    const t=el("text",{x:cx+bw/2,y:H-pad.b+14,"text-anchor":"end",transform:`rotate(-35 ${cx+bw/2} ${H-pad.b+14})`},g);t.textContent=it.l;
+  });
+}
+const STG=[["A_raw","Raw IMU"],["B_drift_imu","+ drift priors"],["C_drift_cam","+ camera"],["C2_lpf","+ 6 Hz filter"],["D_gaitlens","+ crosstalk (final)"],["E_lam1","joint prior λ=1"],["X_onepass","1-pass axis"],["X_nominal","no calibration"]];
+const C3=["var(--accent)","var(--accent-2)","var(--truth)"];
+barChart($("#accChart"),STG.map(([k,l])=>({l,v:A[k].mean.slice(0,3),c:C3})),5.2,null,null);
+(()=>{const s=$("#accChart");[["Flex",0],["Varus",1],["IE",2]].forEach(([n,j],i)=>{el("rect",{x:300+i*72,y:8,width:10,height:10,fill:C3[j],rx:2},s);const t=el("text",{x:314+i*72,y:17},s);t.textContent=n;});})();
+barChart($("#lamChart"),[["truth","Ground truth"],["C2_lpf","Filter only"],["D_gaitlens","Crosstalk min."],["E_lam1","Joint prior λ=1"],["F_lam4","Joint prior λ=4"]].map(([k,l])=>({l,v:[k==="truth"?100:100*D.oa[k].gain],c:[k==="truth"?"var(--truth)":k.startsWith("E")||k.startsWith("F")?"var(--bad)":"var(--accent)"]})),110,null,100);
+
+function lineChart(svg,series,xr,ymax,xfmt,ylab){
+  const W=520,H=280,pad={l:40,r:12,t:12,b:34};
+  const yr=nice(0,ymax),x=scale(xr[0],xr[1],pad.l,W-pad.r),y=scale(0,yr.hi,H-pad.b,pad.t);
+  axes(svg,W,H,pad,x,y,yr,xr[2],xfmt);
+  series.forEach((s,k)=>{el("path",{d:path(s.p.map(p=>[x(p[0]),y(p[1])])),fill:"none",stroke:s.c,"stroke-width":2,"stroke-dasharray":s.d||""},svg);
+    s.p.forEach(p=>el("circle",{cx:x(p[0]),cy:y(p[1]),r:2.4,fill:s.c},svg));
+    el("rect",{x:pad.l+8+k*150,y:pad.t,width:12,height:3,fill:s.c},svg);const t=el("text",{x:pad.l+24+k*150,y:pad.t+5},svg);t.textContent=s.n;});
+}
+lineChart($("#longChart"),[{n:"Raw IMU",c:"var(--muted)",p:D.long.A_raw},{n:"IMU priors",c:"var(--accent)",p:D.long.B_drift_imu},{n:"+ camera",c:"var(--truth)",d:"5 3",p:D.long.C_drift_cam}],[0,6.5,[0,1,2,3,4,5,6]],12,v=>v+" min");
+const sx=Object.keys(D.sta.D_gaitlens).map(Number).sort();
+lineChart($("#staChart"),[{n:"Flexion",c:"var(--accent)",p:sx.map(v=>[v,D.sta.D_gaitlens[String(v)]?.[0]??D.sta.D_gaitlens[v.toFixed(1)][0]])},{n:"Varus",c:"var(--accent-2)",p:sx.map(v=>[v,D.sta.D_gaitlens[v.toFixed(1)][1]])},{n:"IE",c:"var(--truth)",p:sx.map(v=>[v,D.sta.D_gaitlens[v.toFixed(1)][2]])}],[0,2,[0,0.5,1,1.5,2]],4,v=>v+"×");
+render();
+</script>
